@@ -125,9 +125,9 @@ parser.add_argument('--exp', type=str, default='default',
                     help='experiment directory name')
 parser.add_argument('--tb_tag', type=str, default='',
                     help='add tag to tb dir')
-parser.add_argument('--ckpt', type=str, default='logs/ckpt',
+parser.add_argument('--ckpt', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt',
                     help='Save Checkpoint Point')
-parser.add_argument('--tb_path', type=str, default='logs/tb',
+parser.add_argument('--tb_path', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/tb',
                     help='Save Tensorboard Path')
 parser.add_argument('--syncbn', action='store_true', default=True,
                     help='Use Synchronized BN')
