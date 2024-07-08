@@ -66,7 +66,7 @@ __C.STRICTBORDERCLASS = None
 #Attribute Dictionary for Dataset
 __C.DATASET = AttrDict()
 #Cityscapes Dir Location
-__C.DATASET.CITYSCAPES_DIR = '/mnt/hdd2/DGSS/cityscapes'
+__C.DATASET.CITYSCAPES_DIR = '/mnt/backup/gcw-yhj/wildnet/cityspaces'
 #SDC Augmented Cityscapes Dir Location
 __C.DATASET.CITYSCAPES_AUG_DIR = ''
 #Mapillary Dataset Dir Location
@@ -78,7 +78,7 @@ __C.DATASET.BDD_DIR = '/mnt/hdd2/DGSS/bdd100k/seg'
 #Synthia Dataset Dir Location
 __C.DATASET.SYNTHIA_DIR = '/mnt/hdd2/DGSS/synthia'
 #ImageNet Dataset Dir Location
-__C.DATASET.IMAGENET_DIR ='/mnt/hdd2/ImageNet/data'
+__C.DATASET.IMAGENET_DIR ='/mnt/backup/gcw-yhj/wildnet/Mini-ImageNet-Dataset'
 #Kitti Dataset Dir Location
 __C.DATASET.KITTI_DIR = ''
 #SDC Augmented Kitti Dataset Dir Location

@@ -22,7 +22,7 @@ import random
 from itertools import cycle, islice
 
 root = cfg.DATASET.IMAGENET_DIR
-img_postfix = '.JPEG'
+img_postfix = '.jpg'
 
 
 def make_cv_splits():

@@ -31,11 +31,11 @@ parser = argparse.ArgumentParser(description='Semantic Segmentation')
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--arch', type=str, default='network.deepv3.DeepR50V3PlusD',
                     help='Network architecture.')
-parser.add_argument('--dataset', nargs='*', type=str, default=['gtav'],
+parser.add_argument('--dataset', nargs='*', type=str, default=['cityscapes'],
                     help='a list of datasets; cityscapes, mapillary, gtav, bdd100k, synthia')
 parser.add_argument('--image_uniform_sampling', action='store_true', default=False,
                     help='uniformly sample images across the multiple source domains')
-parser.add_argument('--val_dataset', nargs='*', type=str, default=['bdd100k'],
+parser.add_argument('--val_dataset', nargs='*', type=str, default=['cityscapes'],
                     help='a list consists of cityscapes, mapillary, gtav, bdd100k, synthia')
 parser.add_argument('--wild_dataset', nargs='*', type=str, default=['imagenet'],
                     help='a list consists of imagenet')
@@ -71,7 +71,7 @@ parser.add_argument('--fp16', action='store_true', default=False,
 parser.add_argument('--local_rank', default=0, type=int,
                     help='parameter used by apex library')
 
-parser.add_argument('--sgd', action='store_true', default=False)
+parser.add_argument('--sgd', action='store_true', default=True)
 parser.add_argument('--adam', action='store_true', default=False)
 parser.add_argument('--amsgrad', action='store_true', default=False)
 
@@ -187,7 +187,7 @@ args.world_size = 1
 if args.test_mode:
     args.max_epoch = 2
 
-if 'WORLD_SIZE' in os.environ:
+if 'WORLD_SIZE' in os.environ:#显示并行进程数
     # args.apex = int(os.environ['WORLD_SIZE']) > 1
     args.world_size = int(os.environ['WORLD_SIZE'])
     print("Total world size: ", int(os.environ['WORLD_SIZE']))
