@@ -20,11 +20,8 @@ import torch.nn.functional as F
 import numpy as np
 import random
 
-import os
-
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '5678'
-
 
 # Argument Parser
 parser = argparse.ArgumentParser(description='Semantic Segmentation')

@@ -21,28 +21,37 @@ import numpy as np
 import random
 import pdb
 
+os.environ['MASTER_ADDR'] = 'localhost'
+os.environ['MASTER_PORT'] = '5678'
+
 # Argument Parser
 parser = argparse.ArgumentParser(description='Semantic Segmentation')
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--arch', type=str, default='network.deepv3.DeepR50V3PlusD',
                     help='Network architecture.')
-parser.add_argument('--dataset', nargs='*', type=str, default=['gtav'],
+parser.add_argument('--dataset', nargs='*', type=str, default=['cityscapes'],
                     help='a list of datasets; cityscapes, mapillary, gtav, bdd100k, synthia')
+#跨多源域统一采集图像
 parser.add_argument('--image_uniform_sampling', action='store_true', default=False,
                     help='uniformly sample images across the multiple source domains')
-parser.add_argument('--val_dataset', nargs='*', type=str, default=['bdd100k'],
+parser.add_argument('--val_dataset', nargs='*', type=str, default=['cityscapes'],
                     help='a list consists of cityscapes, mapillary, gtav, bdd100k, synthia')
 parser.add_argument('--wild_dataset', nargs='*', type=str, default=['imagenet'],
                     help='a list consists of imagenet')
+#交叉验证方式
 parser.add_argument('--cv', type=int, default=0,
                     help='cross-validation split id to use. Default # of splits set to 3 in config')
+#指定要从不同源域均匀抽样的图像比例的百分比
 parser.add_argument('--class_uniform_pct', type=float, default=0,
                     help='What fraction of images is uniformly sampled')
+#用于类均匀抽样的瓷砖大小。在执行类均匀抽样时，数据可能会被分成块状区域，以便更有效地处理和采样数据
 parser.add_argument('--class_uniform_tile', type=int, default=1024,
                     help='tile size for class uniform sampling')
+#使用粗略注释来增强具有特定类别的细粒度数据。
 parser.add_argument('--coarse_boost_classes', type=str, default=None,
                     help='use coarse annotations to boost fine data with specific classes')
 
+#类平衡加权损失
 parser.add_argument('--img_wt_loss', action='store_true', default=False,
                     help='per-image class-weighted loss')
 parser.add_argument('--cls_wt_loss', action='store_true', default=False,
@@ -50,6 +59,7 @@ parser.add_argument('--cls_wt_loss', action='store_true', default=False,
 parser.add_argument('--batch_weighting', action='store_true', default=False,
                     help='Batch weighting for class (use nll class weighting using batch stats')
 
+#边界放松
 parser.add_argument('--jointwtborder', action='store_true', default=False,
                     help='Enable boundary label relaxation')
 parser.add_argument('--strict_bdr_cls', type=str, default='',
@@ -61,15 +71,18 @@ parser.add_argument('--rescale', type=float, default=1.0,
 parser.add_argument('--repoly', type=float, default=1.5,
                     help='Warm Restart new poly exp')
 
+#混合精度训练（mixed precision training）和分布式训练
 parser.add_argument('--fp16', action='store_true', default=False,
                     help='Use Nvidia Apex AMP')
 parser.add_argument('--local_rank', default=0, type=int,
                     help='parameter used by apex library')
 
-parser.add_argument('--sgd', action='store_true', default=False)
+#优化器选择
+parser.add_argument('--sgd', action='store_true', default=True)
 parser.add_argument('--adam', action='store_true', default=False)
 parser.add_argument('--amsgrad', action='store_true', default=False)
 
+#冻结网络主干、挖掘硬样本
 parser.add_argument('--freeze_trunk', action='store_true', default=False)
 parser.add_argument('--hardnm', default=0, type=int,
                     help='0 means no aug, 1 means hard negative mining iter 1,' +
@@ -77,11 +90,12 @@ parser.add_argument('--hardnm', default=0, type=int,
 
 parser.add_argument('--trunk', type=str, default='resnet-50',
                     help='trunk model, can be: resnet-50 (default)')
-parser.add_argument('--max_epoch', type=int, default=180)
-parser.add_argument('--max_iter', type=int, default=30000)
+parser.add_argument('--max_epoch', type=int, default=256)
+parser.add_argument('--max_iter', type=int, default=32768)
 parser.add_argument('--max_cu_epoch', type=int, default=100000,
                     help='Class Uniform Max Epochs')
 parser.add_argument('--start_epoch', type=int, default=0)
+#裁剪图像时是否填充
 parser.add_argument('--crop_nopad', action='store_true', default=False)
 parser.add_argument('--rrotate', type=int,
                     default=0, help='degree of random roate')
@@ -99,6 +113,7 @@ parser.add_argument('--bs_mult', type=int, default=2,
                     help='Batch size for training per gpu')
 parser.add_argument('--bs_mult_val', type=int, default=1,
                     help='Batch size for Validation per gpu')
+#裁剪尺寸
 parser.add_argument('--crop_size', type=int, default=720,
                     help='training crop size')
 parser.add_argument('--pre_size', type=int, default=None,
@@ -109,6 +124,7 @@ parser.add_argument('--scale_max', type=float, default=2.0,
                     help='dynamically scale training images up to this size')
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--momentum', type=float, default=0.9)
+#模型恢复
 parser.add_argument('--snapshot', type=str, default=None)
 parser.add_argument('--restore_optimizer', action='store_true', default=False)
 
@@ -120,12 +136,13 @@ parser.add_argument('--exp', type=str, default='default',
                     help='experiment directory name')
 parser.add_argument('--tb_tag', type=str, default='',
                     help='add tag to tb dir')
-parser.add_argument('--ckpt', type=str, default='logs/ckpt',
+parser.add_argument('--ckpt', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt',
                     help='Save Checkpoint Point')
-parser.add_argument('--tb_path', type=str, default='logs/tb',
+parser.add_argument('--tb_path', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/tb',
                     help='Save Tensorboard Path')
 parser.add_argument('--syncbn', action='store_true', default=True,
                     help='Use Synchronized BN')
+#转储增强后的图像以进行健全性检查
 parser.add_argument('--dump_augmentation_images', action='store_true', default=False,
                     help='Dump Augmentated Images for sanity check')
 parser.add_argument('--test_mode', action='store_true', default=False,
@@ -143,6 +160,7 @@ parser.add_argument('--dist_url', default='tcp://127.0.0.1:', type=str,
 parser.add_argument('--image_in', action='store_true', default=False,
                     help='Input Image Instance Norm')
 
+#Feature stylization的层数
 parser.add_argument('--fs_layer', nargs='*', type=int, default=[0,0,0,0,0],
                     help='0: None, 1: AdaIN')
 parser.add_argument('--lambda_cel', type=float, default=0.0,
