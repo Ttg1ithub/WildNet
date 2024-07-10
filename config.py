@@ -76,7 +76,7 @@ __C.DATASET.GTAV_DIR = '/mnt/hdd2/DGSS/gta5'
 #BDD-100K Dataset Dir Location
 __C.DATASET.BDD_DIR = '/mnt/hdd2/DGSS/bdd100k/seg'
 #Synthia Dataset Dir Location
-__C.DATASET.SYNTHIA_DIR = '/mnt/hdd2/DGSS/synthia'
+__C.DATASET.SYNTHIA_DIR = '/mnt/backup/gcw-yhj/wildnet/synthia'
 #ImageNet Dataset Dir Location
 __C.DATASET.IMAGENET_DIR ='/mnt/backup/gcw-yhj/wildnet/Mini-ImageNet-Dataset'
 #Kitti Dataset Dir Location

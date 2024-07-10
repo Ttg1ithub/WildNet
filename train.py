@@ -79,8 +79,8 @@ parser.add_argument('--hardnm', default=0, type=int,
 
 parser.add_argument('--trunk', type=str, default='resnet-50',
                     help='trunk model, can be: resnet-50 (default)')
-parser.add_argument('--max_epoch', type=int, default=180)
-parser.add_argument('--max_iter', type=int, default=30000)
+parser.add_argument('--max_epoch', type=int, default=256)
+parser.add_argument('--max_iter', type=int, default=65536)
 parser.add_argument('--max_cu_epoch', type=int, default=100000,
                     help='Class Uniform Max Epochs')
 parser.add_argument('--start_epoch', type=int, default=0)
@@ -111,8 +111,8 @@ parser.add_argument('--scale_max', type=float, default=2.0,
                     help='dynamically scale training images up to this size')
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--momentum', type=float, default=0.9)
-parser.add_argument('--snapshot', type=str, default=None)
-parser.add_argument('--restore_optimizer', action='store_true', default=False)
+parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/default/default/07_09_20/last_None_epoch_10_mean-iu_0.00000.pth')
+parser.add_argument('--restore_optimizer', action='store_true', default=True)
 
 parser.add_argument('--city_mode', type=str, default='train',
                     help='experiment directory date name')

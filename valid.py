@@ -125,7 +125,7 @@ parser.add_argument('--scale_max', type=float, default=2.0,
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--momentum', type=float, default=0.9)
 #模型恢复
-parser.add_argument('--snapshot', type=str, default=None)
+parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/default/default/07_09_21/best_cityscapes_epoch_23_mean-iu_0.60276.pth')
 parser.add_argument('--restore_optimizer', action='store_true', default=False)
 
 parser.add_argument('--city_mode', type=str, default='train',
