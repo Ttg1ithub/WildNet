@@ -97,9 +97,9 @@ parser.add_argument('--lr_schedule', type=str, default='poly',
                     help='name of lr schedule: poly')
 parser.add_argument('--poly_exp', type=float, default=0.9,
                     help='polynomial LR exponent')
-parser.add_argument('--bs_mult', type=int, default=2,
+parser.add_argument('--bs_mult', type=int, default=4,
                     help='Batch size for training per gpu')
-parser.add_argument('--bs_mult_val', type=int, default=1,
+parser.add_argument('--bs_mult_val', type=int, default=2,
                     help='Batch size for Validation per gpu')
 parser.add_argument('--crop_size', type=int, default=720,
                     help='training crop size')
@@ -111,14 +111,14 @@ parser.add_argument('--scale_max', type=float, default=2.0,
                     help='dynamically scale training images up to this size')
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--momentum', type=float, default=0.9)
-parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/default/default/07_09_20/last_None_epoch_10_mean-iu_0.00000.pth')
+parser.add_argument('--snapshot', type=str, default=None)
 parser.add_argument('--restore_optimizer', action='store_true', default=True)
 
 parser.add_argument('--city_mode', type=str, default='train',
                     help='experiment directory date name')
-parser.add_argument('--date', type=str, default='default',
+parser.add_argument('--date', type=str, default='07-11-prot',
                     help='experiment directory date name')
-parser.add_argument('--exp', type=str, default='default',
+parser.add_argument('--exp', type=str, default='V1',
                     help='experiment directory name')
 parser.add_argument('--tb_tag', type=str, default='',
                     help='add tag to tb dir')
@@ -145,17 +145,17 @@ parser.add_argument('--dist_url', default='tcp://127.0.0.1:', type=str,
 parser.add_argument('--image_in', action='store_true', default=False,
                     help='Input Image Instance Norm')
 
-parser.add_argument('--fs_layer', nargs='*', type=int, default=[0,0,0,0,0],
+parser.add_argument('--fs_layer', nargs='*', type=int, default=[1,1,1,0,0],
                     help='0: None, 1: AdaIN')
-parser.add_argument('--lambda_cel', type=float, default=0.0,
+parser.add_argument('--lambda_cel', type=float, default=0.1,
                     help='lambda for content extension learning loss')
-parser.add_argument('--lambda_sel', type=float, default=0.0,
+parser.add_argument('--lambda_sel', type=float, default=0.1,
                     help='lambda for style extension learning loss')
-parser.add_argument('--lambda_scr', type=float, default=0.0,
+parser.add_argument('--lambda_scr', type=float, default=0.1,
                     help='lambda for semantic consistency regularization loss')
-parser.add_argument('--cont_proj_head', type=int, default=0, 
+parser.add_argument('--cont_proj_head', type=int, default=512, 
                     help='number of output channels of content projection head')
-parser.add_argument('--wild_cont_dict_size', type=int, default=0,
+parser.add_argument('--wild_cont_dict_size', type=int, default=36,
                     help='wild-content dictionary size')
 
 parser.add_argument('--use_fs', action='store_true', default=False,
