@@ -34,7 +34,7 @@ parser.add_argument('--dataset', nargs='*', type=str, default=['cityscapes'],
 #跨多源域统一采集图像
 parser.add_argument('--image_uniform_sampling', action='store_true', default=False,
                     help='uniformly sample images across the multiple source domains')
-parser.add_argument('--val_dataset', nargs='*', type=str, default=['cityscapes'],
+parser.add_argument('--val_dataset', nargs='*', type=str, default=['synthia'],
                     help='a list consists of cityscapes, mapillary, gtav, bdd100k, synthia')
 parser.add_argument('--wild_dataset', nargs='*', type=str, default=['imagenet'],
                     help='a list consists of imagenet')
@@ -125,7 +125,7 @@ parser.add_argument('--scale_max', type=float, default=2.0,
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--momentum', type=float, default=0.9)
 #模型恢复
-parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/default/default/07_09_21/best_cityscapes_epoch_23_mean-iu_0.60276.pth')
+parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/07-11-prot/V1/07_11_15/last_None_epoch_296_mean-iu_0.00000.pth')
 parser.add_argument('--restore_optimizer', action='store_true', default=False)
 
 parser.add_argument('--city_mode', type=str, default='train',
