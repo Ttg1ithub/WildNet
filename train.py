@@ -80,7 +80,7 @@ parser.add_argument('--hardnm', default=0, type=int,
 parser.add_argument('--trunk', type=str, default='resnet-50',
                     help='trunk model, can be: resnet-50 (default)')
 parser.add_argument('--max_epoch', type=int, default=256)
-parser.add_argument('--max_iter', type=int, default=65536)
+parser.add_argument('--max_iter', type=int, default=110304)
 parser.add_argument('--max_cu_epoch', type=int, default=100000,
                     help='Class Uniform Max Epochs')
 parser.add_argument('--start_epoch', type=int, default=0)
@@ -97,9 +97,9 @@ parser.add_argument('--lr_schedule', type=str, default='poly',
                     help='name of lr schedule: poly')
 parser.add_argument('--poly_exp', type=float, default=0.9,
                     help='polynomial LR exponent')
-parser.add_argument('--bs_mult', type=int, default=2,
+parser.add_argument('--bs_mult', type=int, default=12,
                     help='Batch size for training per gpu')
-parser.add_argument('--bs_mult_val', type=int, default=1,
+parser.add_argument('--bs_mult_val', type=int, default=12,
                     help='Batch size for Validation per gpu')
 parser.add_argument('--crop_size', type=int, default=720,
                     help='training crop size')
@@ -111,14 +111,14 @@ parser.add_argument('--scale_max', type=float, default=2.0,
                     help='dynamically scale training images up to this size')
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--momentum', type=float, default=0.9)
-parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/default/default/07_09_20/last_None_epoch_10_mean-iu_0.00000.pth')
+parser.add_argument('--snapshot', type=str, default='/mnt/backup/gcw-yhj/wildnet/logs/ckpt/07-11-prot/V1/07_11_15/last_None_epoch_296_mean-iu_0.00000.pth')
 parser.add_argument('--restore_optimizer', action='store_true', default=True)
 
 parser.add_argument('--city_mode', type=str, default='train',
                     help='experiment directory date name')
-parser.add_argument('--date', type=str, default='default',
+parser.add_argument('--date', type=str, default='07-11-prot',
                     help='experiment directory date name')
-parser.add_argument('--exp', type=str, default='default',
+parser.add_argument('--exp', type=str, default='V1',
                     help='experiment directory name')
 parser.add_argument('--tb_tag', type=str, default='',
                     help='add tag to tb dir')
