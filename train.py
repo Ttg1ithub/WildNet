@@ -169,14 +169,21 @@ parser.add_argument('--use_cel', action='store_true', default=False,
 
 args = parser.parse_args()
 
-random_seed = cfg.RANDOM_SEED  #304
+random_seed = cfg.RANDOM_SEED  #304 从配置中获取随机种子值，这里假设 RANDOM_SEED 是预先定义好的随机种子值
+
+# 设置 PyTorch 的随机种子，确保结果的重现性
 torch.manual_seed(random_seed)
 torch.cuda.manual_seed(random_seed)
-torch.cuda.manual_seed_all(random_seed) # if use multi-GPU
+torch.cuda.manual_seed_all(random_seed)  # 如果使用多GPU，设置所有GPU的随机种子
+
+# 设置 cuDNN 的确定性模式和禁用自动优化，以确保结果的一致性
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
+
+# 设置 NumPy 和 Python 内置随机数生成器的种子，以保证一致的随机数生成
 np.random.seed(random_seed)
 random.seed(random_seed)
+
 
 args.world_size = 1
 
@@ -194,10 +201,12 @@ print('My Rank:', args.local_rank)
 # Initialize distributed communication
 args.dist_url = args.dist_url + str(8000 + (int(time.time()%1000))//10)
 
-torch.distributed.init_process_group(backend='nccl',
-                                    init_method='env://',
-                                    world_size=args.world_size,
-                                    rank=args.local_rank)
+torch.distributed.init_process_group(
+    backend='nccl',         # 分布式通信后端，通常选择 'nccl' 用于 NVIDIA GPU
+    init_method='env://',    # 初始化方法，使用环境变量方式进行初始化
+    world_size=args.world_size,  # 总的分布式进程数，通常设置为运行的总 GPU 数量
+    rank=args.local_rank     # 当前进程的全局唯一标识符，通常指定为当前 GPU 的编号
+)
 # torch.distributed.init_process_group(backend='nccl',
 #                                     init_method=args.dist_url,
 #                                     world_size=args.world_size,
@@ -220,7 +229,7 @@ def main():
     """
     # Set up the Arguments, Tensorboard Writer, Dataloader, Loss Fn, Optimizer
     assert_and_infer_cfg(args)
-    writer = prep_experiment(args, parser)
+    writer = prep_experiment(args, parser)#一部分默认设置
 
     train_source_loader, val_loaders, train_wild_loader, train_obj, extra_val_loaders = datasets.setup_loaders(args)
 
@@ -250,26 +259,38 @@ def main():
 
     while i < args.max_iter:
         # Update EPOCH CTR
+        # 设置配置为可变，允许修改配置
         cfg.immutable(False)
+        # 设置迭代次数或参数
         cfg.ITER = i
+        # 设置配置为不可变，防止意外修改
         cfg.immutable(True)
 
+        # 调用训练函数，进行模型训练
         i = train(train_source_loader, train_wild_loader, net, optim, epoch, writer, scheduler, args.max_iter)
+
+        # 更新数据加载器的采样器的 epoch，以确保每个 epoch 数据不同顺序或随机性
         train_source_loader.sampler.set_epoch(epoch + 1)
         train_wild_loader.sampler.set_epoch(epoch + 1)
 
+        # 如果是主进程
         if args.local_rank == 0:
             print("Saving pth file...")
+            # 进行模型评估或保存操作
             evaluate_eval(args, net, optim, scheduler, None, None, [],
                         writer, epoch, "None", None, i, save_pth=True)
 
+        # 如果启用类别均匀采样的选项
         if args.class_uniform_pct:
+            # 根据当前 epoch 是否大于等于最大类别均匀采样 epoch
             if epoch >= args.max_cu_epoch:
+                # 进行类别均匀采样的构建，可能是针对不平衡数据集的处理
                 train_obj.build_epoch(cut=True)
                 train_source_loader.sampler.set_num_samples()
             else:
+                # 普通的 epoch 构建
                 train_obj.build_epoch()
-        
+        # 增加 epoch 计数
         epoch += 1
     
     # Validation after epochs
@@ -314,7 +335,8 @@ def train(source_loader, wild_loader, net, optim, curr_epoch, writer, scheduler,
 
         inputs, gts, _, aux_gts = data
 
-        # Multi source and AGG case
+        # 根据 inputs 的维度是否为5来决定如何处理多源数据和聚合情况，
+        # 确保输入数据的格式和领域之间的对应关系正确
         if len(inputs.shape) == 5:
             B, D, C, H, W = inputs.shape
             num_domains = D
@@ -322,6 +344,8 @@ def train(source_loader, wild_loader, net, optim, curr_epoch, writer, scheduler,
             gts = gts.transpose(0, 1).squeeze(2)
             aux_gts = aux_gts.transpose(0, 1).squeeze(2)
 
+            #将 inputs 按第0维度（即领域维度）分割成 num_domains 个张量，
+            # 并且对每个张量执行 squeeze(0) 操作，以去除多余的维度。
             inputs = [input.squeeze(0) for input in torch.chunk(inputs, num_domains, 0)]
             gts = [gt.squeeze(0) for gt in torch.chunk(gts, num_domains, 0)]
             aux_gts = [aux_gt.squeeze(0) for aux_gt in torch.chunk(aux_gts, num_domains, 0)]
@@ -336,24 +360,25 @@ def train(source_loader, wild_loader, net, optim, curr_epoch, writer, scheduler,
 
         for di, ingredients in enumerate(zip(inputs, gts, aux_gts)):
             input, gt, aux_gt = ingredients
-
+            # 从wild_loader_iter中获取下一个输入
             _, inputs_wild = next(wild_loader_iter)
             input_wild = inputs_wild[0]
 
             start_ts = time.time()
-
-            img_gt = None
+            # 将数据移到GPU上
             input, gt = input.cuda(), gt.cuda()
             input_wild = input_wild.cuda()
-
+            # 梯度清零
             optim.zero_grad()
-            outputs = net(x=input, gts=gt, aux_gts=aux_gt, x_w=input_wild, apply_fs=args.use_fs)
-            
+            # 将输入传递给网络进行前向传播
+            outputs = net(x=input, gts=gt, aux_gts=aux_gt, x_w=input_wild, apply_fs=args.use_fs)    
+            # 解析输出
             outputs_index = 0
-            main_loss = outputs[outputs_index]
+            main_loss = outputs[outputs_index]  # 主要损失
             outputs_index += 1
-            aux_loss = outputs[outputs_index]
+            aux_loss = outputs[outputs_index]   # 辅助损失
             outputs_index += 1
+            # 计算总损失，这里将辅助损失的权重设为0.4
             total_loss = main_loss + (0.4 * aux_loss)
 
             if args.use_fs:

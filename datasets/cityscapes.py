@@ -141,53 +141,53 @@ def make_test_split(img_dir_name):
 
 def make_dataset(quality, mode, maxSkip=0, fine_coarse_mult=6, cv_split=0):
     """
-    Assemble list of images + mask files
+    组装图像和掩码文件路径列表
 
-    fine -   modes: train/val/test/trainval    cv:0,1,2
-    coarse - modes: train/val                  cv:na
+    fine -   模式: train/val/test/trainval    交叉验证:0,1,2
+    coarse - 模式: train/val                  交叉验证:不适用
 
-    path examples:
+    路径示例:
     leftImg8bit_trainextra/leftImg8bit/train_extra/augsburg
     gtCoarse/gtCoarse/train_extra/augsburg
     """
-    items = []
-    aug_items = []
+    items = []      # 存储图像和掩码路径的列表
+    aug_items = []  # 存储增强图像和掩码路径的列表
 
     if quality == 'coarse':
-        assert (cv_split == 0)
-        assert mode in ['train', 'val']
+        assert (cv_split == 0)  # 确保cv_split为0，coarse模式下不使用交叉验证
+        assert mode in ['train', 'val']  # 确保mode为'train'或'val'
         img_dir_name = 'leftImg8bit_trainextra'
         img_path = os.path.join(root, img_dir_name, 'leftImg8bit', 'train_extra')
         mask_path = os.path.join(root, 'gtCoarse', 'gtCoarse', 'train_extra')
         mask_postfix = '_gtCoarse_labelIds.png'
-        coarse_dirs = make_split_coarse(img_path)
+        coarse_dirs = make_split_coarse(img_path)  # 获取coarse模式下的城市目录
         logging.info('{} coarse cities: '.format(mode) + str(coarse_dirs[mode]))
         add_items(items, aug_items, coarse_dirs[mode], img_path, mask_path,
-                  mask_postfix, mode, maxSkip)
+                  mask_postfix, mode, maxSkip)  # 将获取的城市目录中的图像和掩码路径添加到items和aug_items中
     elif quality == 'fine':
-        assert mode in ['train', 'val', 'test', 'trainval']
+        assert mode in ['train', 'val', 'test', 'trainval']  # 确保mode为'train'/'val'/'test'/'trainval'
         img_dir_name = 'leftImg8bit_trainvaltest'
         img_path = os.path.join(root, img_dir_name, 'leftImg8bit')
         mask_path = os.path.join(root, 'gtFine_trainvaltest', 'gtFine')
         mask_postfix = '_gtFine_labelIds.png'
-        cv_splits = make_cv_splits(img_dir_name)
+        cv_splits = make_cv_splits(img_dir_name)  # 获取fine模式下的交叉验证划分
         if mode == 'trainval':
             modes = ['train', 'val']
         else:
             modes = [mode]
         for mode in modes:
             if mode == 'test':
-                cv_splits = make_test_split(img_dir_name)
+                cv_splits = make_test_split(img_dir_name)  # 获取test模式下的划分
                 add_items(items, aug_items, cv_splits, img_path, mask_path,
-                          mask_postfix, mode, maxSkip)
+                          mask_postfix, mode, maxSkip)  # 将获取的测试集图像和掩码路径添加到items和aug_items中
             else:
                 logging.info('{} fine cities: '.format(mode) + str(cv_splits[cv_split][mode]))
                 add_items(items, aug_items, cv_splits[cv_split][mode], img_path, mask_path,
-                          mask_postfix, mode, maxSkip)
+                          mask_postfix, mode, maxSkip)  # 将获取的交叉验证集图像和掩码路径添加到items和aug_items中
     else:
-        raise 'unknown cityscapes quality {}'.format(quality)
-    # logging.info('Cityscapes-{}: {} images'.format(mode, len(items)))
-    logging.info('Cityscapes-{}: {} images'.format(mode, len(items) + len(aug_items)))
+        raise 'unknown cityscapes quality {}'.format(quality)  # 若quality参数未知，则抛出错误
+
+    logging.info('Cityscapes-{}: {} images'.format(mode, len(items) + len(aug_items)))  # 记录最终生成的图像和掩码数量
     return items, aug_items
 
 
@@ -246,33 +246,69 @@ class CityScapes(data.Dataset):
         self.mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
     def _eval_get_item(self, img, mask, scales, flip_bool):
+        """
+        处理评估阶段获取单个样本的方法。
+
+        Args:
+            img: PIL 图像对象，表示输入的图像。
+            mask: PIL 图像对象，表示输入的标签或掩码。
+            scales: 包含多个尺度比例的列表，用于对图像进行缩放。
+            flip_bool: 布尔值，表示是否进行水平翻转。
+
+        Returns:
+            return_imgs: 包含处理后图像的列表，可能包括多个尺度和翻转后的图像。
+            mask: 输入的标签或掩码，保持不变。
+        """
         return_imgs = []
+        # 循环处理翻转操作（包括不翻转和翻转两种情况）
         for flip in range(int(flip_bool) + 1):
             imgs = []
+            # 如果 flip 为真，则进行水平翻转
             if flip:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            # 遍历处理每种尺度比例
             for scale in scales:
                 w, h = img.size
                 target_w, target_h = int(w * scale), int(h * scale)
+                # 调整图像尺寸
                 resize_img = img.resize((target_w, target_h))
+                # 将 PIL 图像转换为 Tensor 格式
                 tensor_img = transforms.ToTensor()(resize_img)
+                # 根据均值和标准差进行标准化处理
                 final_tensor = transforms.Normalize(*self.mean_std)(tensor_img)
+                # 将处理后的 Tensor 添加到 imgs 列表中
                 imgs.append(final_tensor)
+            # 将每种尺度和翻转后的处理结果添加到 return_imgs 列表中
             return_imgs.append(imgs)
+        # 返回处理后的图像列表和输入的标签或掩码
         return return_imgs, mask
 
     def __getitem__(self, index):
+        """
+        根据索引获取数据样本。
 
+        Args:
+            index: 数据集中的索引值。
+
+        Returns:
+            img: 处理后的图像数据。
+            mask: 处理后的标签数据。
+            img_name: 图像名称。
+            mask_aux: 辅助标签数据（如果有的话）。
+        """
+        # 获取图像和标签路径
         img_path, mask_path = self.imgs[index]
-
+        # 打开图像和标签，并转换为适合处理的格式（图像转为RGB，标签保持原始格式）
         img, mask = Image.open(img_path).convert('RGB'), Image.open(mask_path)
+        # 提取图像名称
         img_name = os.path.splitext(os.path.basename(img_path))[0]
-
+        # 将标签转换为NumPy数组，复制一份副本以便处理
         mask = np.array(mask)
         mask_copy = mask.copy()
+        # 根据预定义的映射表 id_to_trainid 将原始标签映射到训练需要的标签值
         for k, v in id_to_trainid.items():
             mask_copy[mask == k] = v
-
+        # 如果处于评估模式且使用池化方式
         if self.eval_mode == 'pooling':
             return [transforms.ToTensor()(img)], self._eval_get_item(img, mask_copy,
                                                                      self.eval_scales,
@@ -280,33 +316,35 @@ class CityScapes(data.Dataset):
 
         mask = Image.fromarray(mask_copy.astype(np.uint8))
 
-        # Image Transformations
+        # 图像转换操作
         if self.extract_feature is not True:
             if self.joint_transform is not None:
                 img, mask = self.joint_transform(img, mask)
-
+        # 如果定义了额外的transform操作，则应用于图像
         if self.transform is not None:
             img = self.transform(img)
-
+        # 对图像进行标准化处理
         rgb_mean_std_gt = ([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
         img_gt = transforms.Normalize(*rgb_mean_std_gt)(img)
-
+        # 如果不处于评估模式
         if not self.eval_mode:
             rgb_mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # 如果设置了image_in
             if self.image_in:
                 eps = 1e-5
                 rgb_mean_std = ([torch.mean(img[0]), torch.mean(img[1]), torch.mean(img[2])],
-                        [torch.std(img[0])+eps, torch.std(img[1])+eps, torch.std(img[2])+eps])
+                                [torch.std(img[0])+eps, torch.std(img[1])+eps, torch.std(img[2])+eps])
+            # 标准化处理图像
             img = transforms.Normalize(*rgb_mean_std)(img)
-
+        # 如果定义了target_aux_transform，则应用于标签的辅助数据
         if self.target_aux_transform is not None:
             mask_aux = self.target_aux_transform(mask)
         else:
             mask_aux = torch.tensor([0])
+        # 如果定义了target_transform，则应用于主要标签数据
         if self.target_transform is not None:
             mask = self.target_transform(mask)
-
-        # Debug
+        # 调试模式下保存图像和标签
         if self.dump_images:
             outdir = '../../dump_imgs_{}'.format(self.mode)
             os.makedirs(outdir, exist_ok=True)
@@ -315,7 +353,7 @@ class CityScapes(data.Dataset):
             mask_img = colorize_mask(np.array(mask))
             img.save(out_img_fn)
             mask_img.save(out_msk_fn)
-
+        # 返回处理后的图像、标签、图像名称和辅助标签数据（如果有的话）
         return img, mask, img_name, mask_aux
 
     def __len__(self):

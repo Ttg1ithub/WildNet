@@ -102,28 +102,37 @@ def assert_and_infer_cfg(args, make_immutable=True, train_mode=True):
     that's harder to understand than is necessary).
     """
 
+    # 如果命令行参数中有 syncbn，并且其值为 True，则使用 PyTorch 的 SyncBatchNorm
     if hasattr(args, 'syncbn') and args.syncbn:
         __C.MODEL.BN = 'pytorch-syncnorm'
         __C.MODEL.BNFUNC = torch.nn.SyncBatchNorm
         print('Using pytorch sync batch norm')
     else:
+        # 否则使用普通的 BatchNorm2d
         __C.MODEL.BNFUNC = torch.nn.BatchNorm2d
         print('Using regular batch norm')
 
+    # 如果不是训练模式，则将配置设置为不可变，并返回
     if not train_mode:
         cfg.immutable(True)
         return
+
+    # 如果命令行参数中有 class_uniform_pct，则设置 CLASS_UNIFORM_PCT
     if args.class_uniform_pct:
         cfg.CLASS_UNIFORM_PCT = args.class_uniform_pct
 
+    # 如果命令行参数中有 batch_weighting，则启用 BATCH_WEIGHTING
     if args.batch_weighting:
         __C.BATCH_WEIGHTING = True
 
+    # 如果命令行参数中有 jointwtborder，则根据参数设置 STRICTBORDERCLASS 和 REDUCE_BORDER_ITER
     if args.jointwtborder:
         if args.strict_bdr_cls != '':
             __C.STRICTBORDERCLASS = [int(i) for i in args.strict_bdr_cls.split(",")]
         if args.rlx_off_iter > -1:
             __C.REDUCE_BORDER_ITER = args.rlx_off_iter
 
+    # 如果 make_immutable 为 True，则将配置设置为不可变
     if make_immutable:
         cfg.immutable(True)
+

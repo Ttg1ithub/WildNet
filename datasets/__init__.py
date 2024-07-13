@@ -26,16 +26,21 @@ ignore_label = 255
 
 def get_train_joint_transform(args, dataset):
     """
-    Get train joint transform
-    Args:
-        args: input config arguments
-        dataset: dataset class object
+    获取训练联合转换
 
-    return: train_joint_transform_list, train_joint_transform
+    Args:
+        args: 输入的配置参数，通常从命令行或配置文件中解析得到。
+        dataset: 数据集对象，表示正在使用的数据集。
+
+    Returns:
+        train_joint_transform_list: 包含各个图像转换操作的列表。
+        train_joint_transform: 组合后的转换对象，顺序应用所有转换操作。
     """
 
-    # Geometric image transformations
+    # 几何图像转换
     train_joint_transform_list = []
+
+    # 随机大小和裁剪转换
     train_joint_transform_list += [
         joint_transforms.RandomSizeAndCrop(args.crop_size,
                                            crop_nopad=args.crop_nopad,
@@ -46,14 +51,17 @@ def get_train_joint_transform(args, dataset):
         joint_transforms.Resize(args.crop_size),
         joint_transforms.RandomHorizontallyFlip()]
 
+    # 可选添加随机旋转转换
     if args.rrotate > 0:
         train_joint_transform_list += [joint_transforms.RandomRotate(
             degree=args.rrotate,
-            ignore_index=dataset.ignore_label)]
+            ignore_index=dataset.ignore_label
+        )]
 
+    # 将所有转换组合成一个联合转换对象
     train_joint_transform = joint_transforms.Compose(train_joint_transform_list)
 
-    # return the raw list for class uniform sampling
+    # 返回原始转换列表，用于类别均匀采样
     return train_joint_transform_list, train_joint_transform
 
 
@@ -82,32 +90,41 @@ def get_train_joint_transform_wild(args, dataset):
 
 def get_input_transforms(args, dataset):
     """
-    Get input transforms
-    Args:
-        args: input config arguments
-        dataset: dataset class object
+    获取输入转换操作
 
-    return: train_input_transform, val_input_transform
+    Args:
+        args: 输入的配置参数，通常从命令行或配置文件中解析得到。
+        dataset: 数据集对象，表示正在使用的数据集。
+
+    Returns:
+        train_input_transform: 训练数据的输入转换对象。
+        val_input_transform: 验证数据的输入转换对象。
     """
 
-    # Image appearance transformations
+    # 图像外观转换
     train_input_transform = []
     val_input_transform = []
+
+    # 如果启用了颜色增强
     if args.color_aug > 0.0:
         train_input_transform += [standard_transforms.RandomApply([
             standard_transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.5)]
 
+    # 根据参数选择模糊处理方式
     if args.bblur:
         train_input_transform += [extended_transforms.RandomBilateralBlur()]
     elif args.gblur:
         train_input_transform += [extended_transforms.RandomGaussianBlur()]
 
+    # 转换为Tensor格式
     train_input_transform += [
-                                standard_transforms.ToTensor()
+        standard_transforms.ToTensor()
     ]
     val_input_transform += [
-                            standard_transforms.ToTensor()
+        standard_transforms.ToTensor()
     ]
+
+    # 组合所有的转换操作
     train_input_transform = standard_transforms.Compose(train_input_transform)
     val_input_transform = standard_transforms.Compose(val_input_transform)
 
@@ -145,21 +162,29 @@ def get_color_geometric_transforms():
 
 def get_target_transforms(args, dataset):
     """
-    Get target transforms
-    Args:
-        args: input config arguments
-        dataset: dataset class object
+    获取目标转换操作
 
-    return: target_transform, target_train_transform, target_aux_train_transform
+    Args:
+        args: 输入的配置参数，通常从命令行或配置文件中解析得到。
+        dataset: 数据集对象，表示正在使用的数据集。
+
+    Returns:
+        target_transform: 目标数据的基本转换对象。
+        target_train_transform: 训练数据的目标转换对象。
+        target_aux_train_transform: 辅助训练数据的目标转换对象。
     """
 
+    # 基本的目标转换为Tensor格式
     target_transform = extended_transforms.MaskToTensor()
+
+    # 是否边界类别放松
     if args.jointwtborder:
         target_train_transform = extended_transforms.RelaxedBoundaryLossToTensor(
-                dataset.ignore_label, dataset.num_classes)
+            dataset.ignore_label, dataset.num_classes)
     else:
         target_train_transform = extended_transforms.MaskToTensor()
 
+    # 辅助训练数据的目标转换为Tensor格式
     target_aux_train_transform = extended_transforms.MaskToTensor()
 
     return target_transform, target_train_transform, target_aux_train_transform
@@ -240,13 +265,13 @@ def setup_loaders(args):
         args.val_batch_size = args.bs_mult_val * args.ngpu
     else:
         args.val_batch_size = args.bs_mult * args.ngpu
-
-    # Readjust batch size to mini-batch size for syncbn
+    # 如果启用了 syncbn，需要调整批量大小为 mini-batch 大小
     if args.syncbn:
         args.train_batch_size = args.bs_mult
         args.val_batch_size = args.bs_mult_val
-
-    args.num_workers = 8 # 8 * args.ngpu
+    # 设置工作进程数量，默认为 8 * args.ngpu
+    args.num_workers = 8 * args.ngpu
+    # 如果处于测试模式，减少工作进程数量为 1
     if args.test_mode:
         args.num_workers = 1
 

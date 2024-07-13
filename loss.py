@@ -13,11 +13,15 @@ from config import cfg
 
 def get_loss(args):
     """
-    Get the criterion based on the loss function
-    args: commandline arguments
-    return: criterion, criterion_val
+    根据命令行参数选择合适的损失函数并返回训练和验证过程中使用的损失函数对象。
+    Args:
+        args (argparse.Namespace): 命令行参数对象，包含了损失函数选择和设置的信息。
+
+    Returns:
+        tuple: 包含训练损失函数和验证损失函数的元组 (criterion, criterion_val)
     """
     if args.cls_wt_loss:
+        # 如果指定了类别权重损失，则创建一个包含特定权重的张量 ce_weight
         ce_weight = torch.Tensor([0.8373, 0.9180, 0.8660, 1.0345, 1.0166, 0.9969, 0.9754,
                                     1.0489, 0.8786, 1.0023, 0.9539, 0.9843, 1.1116, 0.9037,
                                     1.0865, 1.0955, 1.0865, 1.1529, 1.0507])
@@ -25,22 +29,37 @@ def get_loss(args):
         ce_weight = None
 
     if args.img_wt_loss:
+        # 如果指定了基于图像权重的损失
         criterion = ImageBasedCrossEntropyLoss2d(
-            classes=datasets.num_classes, size_average=True,
-            ignore_index=datasets.ignore_label,
-            upper_bound=args.wt_bound).cuda()
+            classes=datasets.num_classes,  # 类别数目
+            size_average=True,  # 平均计算损失
+            ignore_index=datasets.ignore_label,  # 忽略标签
+            upper_bound=args.wt_bound  # 上界参数
+        ).cuda()
     elif args.jointwtborder:
-        criterion = ImgWtLossSoftNLL(classes=datasets.num_classes,
-                                     ignore_index=datasets.ignore_label,
-                                     upper_bound=args.wt_bound).cuda()
+        # 如果指定了联合权重损失
+        criterion = ImgWtLossSoftNLL(
+            classes=datasets.num_classes,  # 类别数目
+            ignore_index=datasets.ignore_label,  # 忽略标签
+            upper_bound=args.wt_bound  # 上界参数
+        ).cuda()
     else:
-        print("standard cross entropy")
-        criterion = nn.CrossEntropyLoss(weight=ce_weight, reduction='mean',
-                                       ignore_index=datasets.ignore_label).cuda()
+        # 默认使用标准的交叉熵损失
+        print("标准交叉熵损失")
+        criterion = nn.CrossEntropyLoss(
+            weight=ce_weight,  # 类别权重
+            reduction='mean',  # 损失计算方式为平均
+            ignore_index=datasets.ignore_label  # 忽略标签
+        ).cuda()
 
-    criterion_val = nn.CrossEntropyLoss(reduction='mean',
-                                       ignore_index=datasets.ignore_label).cuda()
+    # 用于验证过程的损失函数始终为标准的交叉熵损失
+    criterion_val = nn.CrossEntropyLoss(
+        reduction='mean',  # 损失计算方式为平均
+        ignore_index=args.ignore_label  # 忽略标签
+    ).cuda()
+
     return criterion, criterion_val
+
 
 def get_loss_by_epoch(args):
     """
@@ -119,47 +138,73 @@ class L1Loss(nn.Module):
 
 class ImageBasedCrossEntropyLoss2d(nn.Module):
     """
-    Image Weighted Cross Entropy Loss
+    自定义图像加权交叉熵损失函数
     """
 
     def __init__(self, classes, weight=None, size_average=True, ignore_index=255,
                  norm=False, upper_bound=1.0):
+        """
+        初始化函数
+        
+        参数:
+        - classes: 数据集中的类别数目
+        - weight: 类别权重，如果为None，则使用均匀权重
+        - size_average: 是否对损失值进行平均
+        - ignore_index: 在计算损失时要忽略的标签索引
+        - norm: 是否对类别权重进行归一化
+        - upper_bound: 类别权重的上界参数
+        """
         super(ImageBasedCrossEntropyLoss2d, self).__init__()
-        logging.info("Using Per Image based weighted loss")
-        self.num_classes = classes
+        logging.info("使用基于图像的加权损失")
+        
+        self.num_classes = classes  # 类别数目
         self.nll_loss = nn.NLLLoss(weight=weight, reduction='mean', ignore_index=ignore_index)
-        self.norm = norm
-        self.upper_bound = upper_bound
-        self.batch_weights = cfg.BATCH_WEIGHTING
-        self.logsoftmax = nn.LogSoftmax(dim=1)
+        self.norm = norm  # 是否对权重进行归一化
+        self.upper_bound = upper_bound  # 类别权重的上界
+        self.batch_weights = cfg.BATCH_WEIGHTING  # 是否使用批次权重
+        self.logsoftmax = nn.LogSoftmax(dim=1)  # 对数softmax函数
 
     def calculate_weights(self, target):
         """
-        Calculate weights of classes based on the training crop
+        计算基于训练集裁剪的类别权重
+        
+        参数:
+        - target: 目标标签张量
+        
+        返回:
+        - hist: 类别权重数组
         """
-        hist = np.histogram(target.flatten(), range(
-            self.num_classes + 1), normed=True)[0]
+        hist = np.histogram(target.flatten(), range(self.num_classes + 1), normed=True)[0]
+        
         if self.norm:
             hist = ((hist != 0) * self.upper_bound * (1 / hist)) + 1
         else:
-            hist = ((hist != 0) * self.upper_bound * (1 - hist)) + 1
+            hist = ((hist != 0) * self.upper_bound * (1 - hist)) + 1        
         return hist
 
     def forward(self, inputs, targets):
-
-        target_cpu = targets.data.cpu().numpy()
+        """
+        前向传播函数
+        
+        参数:
+        - inputs: 模型的预测输出
+        - targets: 真实的标签
+        
+        返回:
+        - loss: 计算得到的损失值
+        """
+        target_cpu = targets.data.cpu().numpy()  # 将目标标签转移到CPU并转换为numpy数组        
         if self.batch_weights:
-            weights = self.calculate_weights(target_cpu)
-            self.nll_loss.weight = torch.Tensor(weights).cuda()
-
+            weights = self.calculate_weights(target_cpu)  # 计算批次权重
+            self.nll_loss.weight = torch.Tensor(weights).cuda()  # 更新NLLLoss的权重        
         loss = 0.0
         for i in range(0, inputs.shape[0]):
             if not self.batch_weights:
-                weights = self.calculate_weights(target_cpu[i])
-                self.nll_loss.weight = torch.Tensor(weights).cuda()
-
-            loss += self.nll_loss(self.logsoftmax(inputs[i].unsqueeze(0)),
-                                  targets[i].unsqueeze(0))
+                weights = self.calculate_weights(target_cpu[i])  # 计算单个样本的权重
+                self.nll_loss.weight = torch.Tensor(weights).cuda()  # 更新NLLLoss的权重               
+            # 计算加权交叉熵损失并累加到总损失中
+            loss += self.nll_loss(self.logsoftmax(inputs[i].unsqueeze(0)), targets[i].unsqueeze(0))
+        
         return loss
 
 

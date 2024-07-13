@@ -159,53 +159,95 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
     """
-    Resnet Global Module for Initialization
+    ResNet Global Module for Initialization
     """
 
     def __init__(self, block, layers, fs_layer=None, num_classes=1000):
+        """
+        初始化 ResNet 模型
+
+        Args:
+        - block (nn.Module): 残差块的类或函数，用于构建 ResNet 中的每个残差块。
+        - layers (list of int): 每个阶段中残差块的数量列表。
+        - fs_layer (list or None): 控制每个阶段中是否使用特定功能的开关列表，默认为 None。
+        - num_classes (int): 分类任务的类别数量，默认为 1000。
+        """
         self.inplanes = 64
         super(ResNet, self).__init__()
+
+        # 第一层：卷积层和归一化层
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         if fs_layer[0] == 1:
+            # 如果 fs_layer 的第一个元素为 1，则使用自适应实例归一化和非原地 ReLU 激活
             self.bn1 = AdaptiveInstanceNormalization()
             self.relu = nn.ReLU(inplace=False)
         else:
+            # 否则使用自定义的归一化层和原地 ReLU 激活
             self.bn1 = mynn.Norm2d(64)
             self.relu = nn.ReLU(inplace=True)
 
+        # 最大池化层
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        # 构建四个阶段的残差块层
         self.layer1 = self._make_layer(block, 64, layers[0], fs_layer=fs_layer[1])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2, fs_layer=fs_layer[2])
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, fs_layer=fs_layer[3])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, fs_layer=fs_layer[4])
+
+        # 全局平均池化层和全连接层
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
+        # 初始化网络参数
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
+                # 对卷积层使用 Kaiming 初始化
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm):
+                # 对归一化层的权重初始化为常数 1，偏置初始化为常数 0
                 if m.weight is not None:
                     nn.init.constant_(m.weight, 1)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1, fs_layer=0):
+        """
+        构建由多个残差块组成的层（或阶段）。
+
+        Args:
+        - block (nn.Module): 残差块的类或函数，用于构建层中的每个块。
+        - planes (int): 每个残差块的输出通道数。
+        - blocks (int): 该层中残差块的数量。
+        - stride (int, optional): 第一个残差块中的步幅，默认为1。
+        - fs_layer (int, optional): 控制残差块中某个特定功能的开关。
+
+        Returns:
+        - nn.Sequential: 包含所有残差块的序列化层。
+
+        """
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
+            # 如果步幅不为1或者输入通道数不等于残差块的输出通道数乘以扩展系数，则进行下采样
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                        kernel_size=1, stride=stride, bias=False),
                 mynn.Norm2d(planes * block.expansion),
             )
 
         layers = []
+        
+        # 添加第一个残差块到层中
         layers.append(block(self.inplanes, planes, stride, downsample, fs=0))
-        self.inplanes = planes * block.expansion
+        self.inplanes = planes * block.expansion  # 更新输入通道数为当前残差块的输出通道数
+
+        # 添加剩余的残差块到层中
         for index in range(1, blocks):
-            layers.append(block(self.inplanes, planes,
-                                fs=0 if (fs_layer > 0 and index < blocks - 1) else fs_layer))
+            # 控制特定功能的开关 fs_layer
+            fs = 0 if (fs_layer > 0 and index < blocks - 1) else fs_layer
+            layers.append(block(self.inplanes, planes, fs=fs))
+
         return nn.Sequential(*layers)
 
     def forward(self, x):

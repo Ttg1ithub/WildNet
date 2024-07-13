@@ -119,20 +119,27 @@ class DeepV3Plus(nn.Module):
         self.criterion_kl = nn.KLDivLoss(reduction='batchmean').cuda()
 
         # create the wild-content dictionary
-        self.cont_proj_head = cont_proj_head
-        if wild_cont_dict_size > 0:
-            if cont_proj_head > 0:
-                self.cont_dict = {}
-                self.cont_dict['size'] = wild_cont_dict_size
-                self.cont_dict['dim'] = self.cont_proj_head
+        self.cont_proj_head = cont_proj_head  # 保存cont_proj_head参数
+        if wild_cont_dict_size > 0:  # 如果wild_cont_dict_size大于0
+            if cont_proj_head > 0:  # 如果cont_proj_head大于0
+                self.cont_dict = {}  # 初始化一个空字典self.cont_dict用于存储字典相关信息
+                self.cont_dict['size'] = wild_cont_dict_size  # 设置字典大小
+                self.cont_dict['dim'] = self.cont_proj_head  # 设置字典维度
 
+                # 生成一个随机的wild_cont_dict，其维度是(self.cont_proj_head, wild_cont_dict_size)
                 self.register_buffer("wild_cont_dict", torch.randn(self.cont_dict['dim'], self.cont_dict['size']))
-                self.wild_cont_dict = nn.functional.normalize(self.wild_cont_dict, p=2, dim=0) # C X Q
+                
+                # 对wild_cont_dict进行L2范数归一化
+                self.wild_cont_dict = nn.functional.normalize(self.wild_cont_dict, p=2, dim=0)  # 归一化操作，保证每列的模长为1
+
+                # 注册wild_cont_dict_ptr，一个形状为(1,)的零张量作为指针
                 self.register_buffer("wild_cont_dict_ptr", torch.zeros(1, dtype=torch.long))
+
+                # 将归一化后的wild_cont_dict移动到GPU上
                 self.cont_dict['wild'] = self.wild_cont_dict.cuda()
                 self.cont_dict['wild_ptr'] = self.wild_cont_dict_ptr
             else:
-                raise 'dimension of wild-content dictionary is zero'
+                raise 'dimension of wild-content dictionary is zero'  # 如果cont_proj_head不大于0，则抛出异常
 
         # set backbone
         self.variant = variant
@@ -156,13 +163,18 @@ class DeepV3Plus(nn.Module):
             resnet.layer1, resnet.layer2, resnet.layer3, resnet.layer4
 
         if self.variant == 'D16':
-            os = 16
+            # 设置步幅参数
+            os = 16  # 设定变量 os 的值为 16
+            # 遍历 self.layer4 中的所有模块
             for n, m in self.layer4.named_modules():
                 if 'conv2' in n:
+                    # 如果模块名称中包含 'conv2'，设置 dilation、padding 和 stride
                     m.dilation, m.padding, m.stride = (2, 2), (2, 2), (1, 1)
                 elif 'downsample.0' in n:
+                    # 如果模块名称中包含 'downsample.0'，设置 stride 为 (1, 1)
                     m.stride = (1, 1)
         else:
+            # 如果 self.variant 不是 'D16'，抛出异常
             raise 'unknown deepv3 variant: {}'.format(self.variant)
 
         self.output_stride = os

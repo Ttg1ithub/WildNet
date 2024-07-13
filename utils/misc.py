@@ -107,14 +107,27 @@ def prep_experiment(args, parser):
     #                    'acc_cls': 0, 'mean_iu': 0, 'fwavacc': 0}
     args.last_record = {}
     if args.local_rank == 0:
+        # 如果当前进程的 local_rank 是 0，表示这是主进程（或者主 GPU 的进程）
+
+        # 确保实验路径和 TensorBoard 日志路径存在，如果不存在则创建
         os.makedirs(args.exp_path, exist_ok=True)
         os.makedirs(args.tb_exp_path, exist_ok=True)
+
+        # 保存日志到文件中，使用 save_log 函数（假设已定义）将日志保存在指定路径下
         save_log('log', args.exp_path, args.date_str, rank=args.local_rank)
-        open(os.path.join(args.exp_path, args.date_str + '.txt'), 'w').write(
-            str(args) + '\n\n')
+
+        # 创建一个新的文本文件，保存当前的参数设置（args）
+        open(os.path.join(args.exp_path, args.date_str + '.txt'), 'w').write(str(args) + '\n\n')
+
+        # 创建 SummaryWriter 对象，用于记录 TensorBoard 日志
         writer = SummaryWriter(log_dir=args.tb_exp_path, comment=args.tb_tag)
+
+        # 返回创建的 SummaryWriter 对象，供后续使用
         return writer
+
+    # 如果当前进程的 local_rank 不是 0，返回 None
     return None
+
 
 def evaluate_eval_for_inference(hist, dataset=None):
     """
